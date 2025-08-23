@@ -4,12 +4,39 @@ services:
   backend:
     build:
       context: .
-      target: dev          # 👈 ensures nodemon/ts-node are present
+      target: dev                 # uses the dev stage from your multi-target Dockerfile
     container_name: express-ts-app
     env_file: .env
     ports:
       - "${PORT:-3000}:3000"
     volumes:
-      - .:/app             # live code
-      - /app/node_modules  # keep container's node_modules (with devDeps)
+      - .:/app                    # live code
+      - /app/node_modules         # keep container node_modules (with devDeps)
+    working_dir: /app
+    command: npm run dev          # nodemon + ts-node
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: local-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apppass}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d  # put *.sql here; runs on first boot
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
