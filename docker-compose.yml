@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      target: dev          # 👈 ensures nodemon/ts-node are present
+    container_name: express-ts-app
+    env_file: .env
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - .:/app             # live code
+      - /app/node_modules  # keep container's node_modules (with devDeps)
+    restart: unless-stopped
