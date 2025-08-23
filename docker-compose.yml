@@ -4,19 +4,21 @@ services:
   backend:
     build:
       context: .
-      target: dev                 # uses the dev stage from your multi-target Dockerfile
+      target: dev
     container_name: express-ts-app
     env_file: .env
+    working_dir: /app
+    command: npm run dev
     ports:
       - "${PORT:-3000}:3000"
     volumes:
-      - .:/app                    # live code
-      - /app/node_modules         # keep container node_modules (with devDeps)
-    working_dir: /app
-    command: npm run dev          # nodemon + ts-node
+      - .:/app
+      - /app/node_modules
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
 
   db:
@@ -30,7 +32,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d  # put *.sql here; runs on first boot
+      - ./db/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -38,5 +40,16 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: local-redis
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  redisdata:
